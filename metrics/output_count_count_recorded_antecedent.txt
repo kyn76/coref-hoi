@@ -1,0 +1,10 @@
+Stats about correct antecedents predictions, recorded in csv files given the max rank (k=210 as of 21/02/2023)
+
+  Nb positive scores :     62.78% (12407/19764)
+  Nb null scores (dummy) : 22.93% (4532/19764)
+  Nb negative scores :     14.29% (2825/19764)
+--------------------------
+  TOTAL (predicted) :      100.00% (19764/19764)
+--------------------------
+  Nb unpredicted :         0.00% (0/19764) -> number of missing correct antecedent prediction
+  Nb -infinity scores :    0.00% (0/19764)
