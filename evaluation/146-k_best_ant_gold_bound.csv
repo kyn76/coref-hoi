@@ -1,0 +1,10 @@
+doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
+bn/voa/02/voa_0249_0,0,5,10,1,0.0,-1,21,23
+bn/voa/02/voa_0249_0,0,5,10,2,-inf,2,21,23
+bn/voa/02/voa_0249_0,0,5,10,3,-inf,1,18,18
+bn/voa/02/voa_0249_0,1,18,18,1,71.6154556274414,0,5,10
+bn/voa/02/voa_0249_0,1,18,18,2,0.0,-1,21,23
+bn/voa/02/voa_0249_0,1,18,18,3,-inf,2,21,23
+bn/voa/02/voa_0249_0,2,21,23,1,82.27787017822266,0,5,10
+bn/voa/02/voa_0249_0,2,21,23,2,27.394485473632812,1,18,18
+bn/voa/02/voa_0249_0,2,21,23,3,0.0,-1,21,23

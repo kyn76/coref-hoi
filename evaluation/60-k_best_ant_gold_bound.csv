@@ -1,0 +1,10 @@
+doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
+bn/abc/00/abc_0059_0,0,1,7,1,0.0,-1,37,37
+bn/abc/00/abc_0059_0,0,1,7,2,-inf,2,37,37
+bn/abc/00/abc_0059_0,0,1,7,3,-inf,1,35,35
+bn/abc/00/abc_0059_0,1,35,35,1,77.55818939208984,0,1,7
+bn/abc/00/abc_0059_0,1,35,35,2,0.0,-1,37,37
+bn/abc/00/abc_0059_0,1,35,35,3,-inf,2,37,37
+bn/abc/00/abc_0059_0,2,37,37,1,73.02449798583984,1,35,35
+bn/abc/00/abc_0059_0,2,37,37,2,66.16996002197266,0,1,7
+bn/abc/00/abc_0059_0,2,37,37,3,0.0,-1,37,37

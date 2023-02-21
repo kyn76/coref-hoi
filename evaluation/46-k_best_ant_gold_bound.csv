@@ -1,0 +1,17 @@
+doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
+bc/msnbc/00/msnbc_0007_12,0,4,5,1,0.0,-1,41,43
+bc/msnbc/00/msnbc_0007_12,0,4,5,2,-inf,1,7,7
+bc/msnbc/00/msnbc_0007_12,0,4,5,3,-inf,0,4,5
+bc/msnbc/00/msnbc_0007_12,0,4,5,4,-inf,3,41,43
+bc/msnbc/00/msnbc_0007_12,1,7,7,1,75.6014633178711,0,4,5
+bc/msnbc/00/msnbc_0007_12,1,7,7,2,0.0,-1,41,43
+bc/msnbc/00/msnbc_0007_12,1,7,7,3,-inf,1,7,7
+bc/msnbc/00/msnbc_0007_12,1,7,7,4,-inf,3,41,43
+bc/msnbc/00/msnbc_0007_12,2,20,22,1,0.0,-1,41,43
+bc/msnbc/00/msnbc_0007_12,2,20,22,2,-101.51493835449219,0,4,5
+bc/msnbc/00/msnbc_0007_12,2,20,22,3,-117.0135726928711,1,7,7
+bc/msnbc/00/msnbc_0007_12,2,20,22,4,-inf,2,20,22
+bc/msnbc/00/msnbc_0007_12,3,41,43,1,68.1507797241211,2,20,22
+bc/msnbc/00/msnbc_0007_12,3,41,43,2,0.0,-1,41,43
+bc/msnbc/00/msnbc_0007_12,3,41,43,3,-81.92980194091797,0,4,5
+bc/msnbc/00/msnbc_0007_12,3,41,43,4,-92.61357116699219,1,7,7
