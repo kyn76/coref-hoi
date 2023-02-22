@@ -321,10 +321,10 @@ class Runner:
             pred_filename = "k_best_antecedents"
             metric_file_suffix = "pred_boundaries"
 
-        # metric_file = open(f"metrics/k-metrics-{metric_file_suffix}.csv", "w")
-        # metric_file.write("k,eval_avg_p,eval_avg_r,eval_avg_f,conll_md_p,conll_md_r,conll_md_f,conll_muc_p,conll_muc_r,conll_muc_f,conll_bcub_p,conll_bcub_r,conll_bcub_f,conll_ceafe_p,conll_ceafe_r,conll_ceafe_f,conll_avg_f\n")
+        metric_file = open(f"metrics/k-metrics-{metric_file_suffix}.csv", "w")
+        metric_file.write("k,eval_avg_p,eval_avg_r,eval_avg_f,conll_md_p,conll_md_r,conll_md_f,conll_muc_p,conll_muc_r,conll_muc_f,conll_bcub_p,conll_bcub_r,conll_bcub_f,conll_ceafe_p,conll_ceafe_r,conll_ceafe_f,conll_avg_f\n")
         model.eval()
-        for k in range(1, 2):#MAX_NB_ANTECEDENTS + 1):
+        for k in range(1, MAX_NB_ANTECEDENTS + 1):
             for i, (doc_key, tensor_example) in enumerate(tensor_examples):
                 gold_clusters = stored_info['gold'][doc_key]
 
@@ -359,7 +359,7 @@ class Runner:
                                     gold_antecedent_end = int(gold_row["antecedent_end"])
                                 break
                     
-                    if float(pred_row["antecedent_score"]) < 0 or int(pred_row["antecedent_rank"]) > k:
+                    if int(pred_row["antecedent_rank"]) > k:
                         continue
                     
                     if float(pred_row["antecedent_score"]) == 0 and gold_antecedent_is_dummy:
@@ -372,36 +372,36 @@ class Runner:
                         predicted_antecedent_idx[-1] = int(pred_row["antecedent_idx"]) # if gold is found, we correct the current predicted antecedent
                 
                 ### DEBUG STEP : CHECK IF EVERY SPANS ARE PROVIDED TO EVALUATOR (through span_starts / ends lists)
-                gold_spans = [] # list of gold (start, end) 
-                gold_file = open(f"evaluation/{i}-gold_antecedents.csv", "r")
-                gold_reader = list(csv.DictReader(gold_file))
-                for gold_row in gold_reader:
-                    gold_spans.append((int(gold_row["anaphor_start"]), int(gold_row["anaphor_end"])))
-                gold_file.close()
+                # gold_spans = [] # list of gold (start, end) 
+                # gold_file = open(f"evaluation/{i}-gold_antecedents.csv", "r")
+                # gold_reader = list(csv.DictReader(gold_file))
+                # for gold_row in gold_reader:
+                #     gold_spans.append((int(gold_row["anaphor_start"]), int(gold_row["anaphor_end"])))
+                # gold_file.close()
                 
-                spans = list(zip(span_starts, span_ends))
-                assert(gold_spans == spans)
-                print(f"Doc {i+1}/348 OK")
+                # spans = list(zip(span_starts, span_ends))
+                # assert(gold_spans == spans)
+                # print(f"Doc {i+1}/348 OK")
                 ###
 
-        #         predicted_clusters = model.update_evaluator_v2(span_starts, span_ends, predicted_antecedent_idx, gold_clusters, evaluator)
-        #         doc_to_prediction[doc_key] = predicted_clusters
+                predicted_clusters = model.update_evaluator_v2(span_starts, span_ends, predicted_antecedent_idx, gold_clusters, evaluator)
+                doc_to_prediction[doc_key] = predicted_clusters
 
-        #     p, r, f = evaluator.get_prf()
-        #     metrics = {'Eval_Avg_Precision': p * 100, 'Eval_Avg_Recall': r * 100, 'Eval_Avg_F1': f * 100}
-        #     for name, score in metrics.items():
-        #         #logger.info('%s: %.2f' % (name, score))
-        #         if tb_writer:
-        #             tb_writer.add_scalar(name, score, step)
+            p, r, f = evaluator.get_prf()
+            metrics = {'Eval_Avg_Precision': p * 100, 'Eval_Avg_Recall': r * 100, 'Eval_Avg_F1': f * 100}
+            for name, score in metrics.items():
+                #logger.info('%s: %.2f' % (name, score))
+                if tb_writer:
+                    tb_writer.add_scalar(name, score, step)
 
-        #     if official:
-        #         conll_results = conll.evaluate_conll(conll_path, doc_to_prediction, stored_info['subtoken_maps'], official_stdout=False)
-        #         official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
-        #         #logger.info('Official avg F1: %.4f' % official_f1)
-        #     metric_file.write(f"{k},{p*100:.2f},{r*100:.2f},{f*100:.2f},{conll_results['muc']['md_p']},{conll_results['muc']['md_r']},{conll_results['muc']['md_f']},{conll_results['muc']['p']},{conll_results['muc']['r']},{conll_results['muc']['f']},{conll_results['bcub']['p']},{conll_results['bcub']['r']},{conll_results['bcub']['f']},{conll_results['ceafe']['p']},{conll_results['ceafe']['r']},{conll_results['ceafe']['f']},{official_f1:.4f}\n")
-        #     logger.info(f"evaluation from csv file - rank {k}/{MAX_NB_ANTECEDENTS}")
+            if official:
+                conll_results = conll.evaluate_conll(conll_path, doc_to_prediction, stored_info['subtoken_maps'], official_stdout=False)
+                official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
+                #logger.info('Official avg F1: %.4f' % official_f1)
+            metric_file.write(f"{k},{p*100:.2f},{r*100:.2f},{f*100:.2f},{conll_results['muc']['md_p']},{conll_results['muc']['md_r']},{conll_results['muc']['md_f']},{conll_results['muc']['p']},{conll_results['muc']['r']},{conll_results['muc']['f']},{conll_results['bcub']['p']},{conll_results['bcub']['r']},{conll_results['bcub']['f']},{conll_results['ceafe']['p']},{conll_results['ceafe']['r']},{conll_results['ceafe']['f']},{official_f1:.4f}\n")
+            logger.info(f"evaluation from csv file - rank {k}/{MAX_NB_ANTECEDENTS}")
 
-        # metric_file.close()
+        metric_file.close()
 
     def predict(self, model, tensor_examples):
         logger.info('Predicting %d samples...' % len(tensor_examples))
