@@ -1,5 +1,0 @@
-doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
-mz/sinorama/10/ectb_1069_6,0,63,63,1,0.0,-1,72,72
-mz/sinorama/10/ectb_1069_6,0,63,63,2,-inf,1,72,72
-mz/sinorama/10/ectb_1069_6,1,72,72,1,0.0,-1,72,72
-mz/sinorama/10/ectb_1069_6,1,72,72,2,-20.55632209777832,0,63,63

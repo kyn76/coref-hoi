@@ -1,5 +1,0 @@
-doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
-bn/nbc/00/nbc_0009_0,0,56,64,1,0.0,-1,73,74
-bn/nbc/00/nbc_0009_0,0,56,64,2,-inf,1,73,74
-bn/nbc/00/nbc_0009_0,1,73,74,1,66.13145446777344,0,56,64
-bn/nbc/00/nbc_0009_0,1,73,74,2,0.0,-1,73,74

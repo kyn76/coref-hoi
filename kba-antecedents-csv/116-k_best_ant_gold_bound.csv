@@ -1,5 +1,0 @@
-doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
-bn/pri/00/pri_0059_0,0,35,45,1,0.0,-1,51,52
-bn/pri/00/pri_0059_0,0,35,45,2,-inf,1,51,52
-bn/pri/00/pri_0059_0,1,51,52,1,74.69680786132812,0,35,45
-bn/pri/00/pri_0059_0,1,51,52,2,0.0,-1,51,52

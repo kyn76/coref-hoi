@@ -1,5 +1,0 @@
-doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
-nw/xinhua/03/chtb_0319_0,0,19,19,1,0.0,-1,58,59
-nw/xinhua/03/chtb_0319_0,0,19,19,2,-inf,1,58,59
-nw/xinhua/03/chtb_0319_0,1,58,59,1,0.0,-1,58,59
-nw/xinhua/03/chtb_0319_0,1,58,59,2,-26.72434425354004,0,19,19
