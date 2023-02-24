@@ -1,5 +1,0 @@
-doc_key,span_idx,span_start,span_end,antecedent_rank,antecedent_score,antecedent_idx,antecedent_start,antecedent_end
-bn/cnn/00/cnn_0009_0,0,1,4,1,0.0,-1,17,18
-bn/cnn/00/cnn_0009_0,0,1,4,2,-inf,1,17,18
-bn/cnn/00/cnn_0009_0,1,17,18,1,68.50605010986328,0,1,4
-bn/cnn/00/cnn_0009_0,1,17,18,2,0.0,-1,17,18
