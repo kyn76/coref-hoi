@@ -168,14 +168,9 @@ class Runner:
             tensor_example = tensor_example[:7]  # Strip out gold
             example_gpu = [d.to(self.device) for d in tensor_example]
             with torch.no_grad():
-                output = model(*example_gpu)
-                if output is None: # no candidate
-                    span_starts, span_ends, antecedent_idx, antecedent_scores = [], [], [], []
-                else:
-                    _, _, _, span_starts, span_ends, antecedent_idx, antecedent_scores = output
-                    span_starts, span_ends = span_starts.tolist(), span_ends.tolist()
-                    antecedent_idx, antecedent_scores = antecedent_idx.tolist(), antecedent_scores.tolist()
-
+                _, _, _, span_starts, span_ends, antecedent_idx, antecedent_scores = model(*example_gpu)
+            span_starts, span_ends = span_starts.tolist(), span_ends.tolist()
+            antecedent_idx, antecedent_scores = antecedent_idx.tolist(), antecedent_scores.tolist()
             predicted_clusters = model.update_evaluator(span_starts, span_ends, antecedent_idx, antecedent_scores, gold_clusters, evaluator)
             doc_to_prediction[doc_key] = predicted_clusters
 
@@ -191,7 +186,7 @@ class Runner:
             official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
             logger.info('Official avg F1: %.4f' % official_f1)
 
-        return f * 100, metrics
+        return f * 100, 
 
     def k_best_antecedents_logging(self, doc_number, doc_key, span_starts, span_ends, k_best_antecedent_idx, k_best_antecedent_scores, gold_boundaries):
         """
@@ -239,21 +234,23 @@ class Runner:
 
         model.eval()
         for i, (doc_key, tensor_example) in enumerate(tensor_examples):
-            gold_clusters = stored_info['gold'][doc_key]
+            if i < 294:
+                continue
             tensor_example_gold = tensor_example[7:]
-            if not gold_boundaries:
-                tensor_example = tensor_example[:7]  # Strip out gold
-            example_gpu = [d.to(self.device) for d in tensor_example]
-            with torch.no_grad():
-                output = model(*example_gpu)
-                if output is None: # no candidate
-                    span_starts, span_ends, antecedent_idx, antecedent_scores = [], [], [], []
-                else:
-                    _, _, _, span_starts, span_ends, antecedent_idx, antecedent_scores = output
-                    span_starts, span_ends = span_starts.tolist(), span_ends.tolist()
-                    antecedent_idx, antecedent_scores = antecedent_idx.tolist(), antecedent_scores.tolist()
 
             if logging == "kbest":
+                if not gold_boundaries:
+                    tensor_example = tensor_example[:7]  # Strip out gold
+                example_gpu = [d.to(self.device) for d in tensor_example]
+                with torch.no_grad():
+                    output = model(*example_gpu)
+                    if output is None: # no candidate
+                        span_starts, span_ends, antecedent_idx, antecedent_scores = [], [], [], []
+                    else:
+                        _, _, _, span_starts, span_ends, antecedent_idx, antecedent_scores = output
+                        span_starts, span_ends = span_starts.tolist(), span_ends.tolist()
+                        antecedent_idx, antecedent_scores = antecedent_idx.tolist(), antecedent_scores.tolist()
+
                 k_best_antecedent_idx, k_best_antecedent_scores = CorefModel.get_k_best_predicted_antecedents(antecedent_idx, antecedent_scores, k=k)
                 self.k_best_antecedents_logging(i, doc_key, span_starts, span_ends, k_best_antecedent_idx, k_best_antecedent_scores, gold_boundaries=gold_boundaries)
                 nb_examples = len(tensor_examples)
@@ -262,47 +259,6 @@ class Runner:
                 self.gold_antecedents_logging(i, doc_key, tensor_example_gold)
                 nb_examples = len(tensor_examples)
                 logger.info(f"gold antecedents logging ... {i+1}/{nb_examples}")
-
-    def evaluate_debug(self, model, tensor_examples, stored_info, step, official=False, conll_path=None, tb_writer=None):
-        logger.info('Step %d: evaluating on %d samples...' % (step, len(tensor_examples)))
-        model.to(self.device)
-        evaluator = CorefEvaluator()
-        doc_to_prediction = {}
-
-        model.eval()
-        total_mentions = 0
-        correct_mentions = 0
-        for i, (doc_key, tensor_example) in enumerate(tensor_examples):
-            gold_clusters = stored_info['gold'][doc_key]
-            tensor_example_gold = tensor_example[7:]
-            # tensor_example = tensor_example[:7]  # Strip out gold
-            example_gpu = [d.to(self.device) for d in tensor_example]
-            with torch.no_grad():
-                output = model(*example_gpu)
-                if output is None: # no candidate
-                    span_starts, span_ends, antecedent_idx, antecedent_scores = [], [], [], []
-                else:
-                    gold_starts, gold_ends, gold_mention_scores, span_starts, span_ends, antecedent_idx, antecedent_scores = output
-                    span_starts, span_ends = span_starts.tolist(), span_ends.tolist()
-                    antecedent_idx, antecedent_scores = antecedent_idx.tolist(), antecedent_scores.tolist()
-                    gold_starts, gold_ends = gold_starts.tolist(), gold_ends.tolist()
-
-                    golds = list(zip(gold_starts, gold_ends))
-                    spans = list(zip(span_starts, span_ends))
-
-                    logger.info(f"Doc {i+1}/348")
-                    if golds != spans:
-                        print(f"golds : {golds}\nspans : {spans}\n")
-                        for i in range(len(golds)):
-                            if spans[i] == golds[i]:
-                                correct_mentions += 1
-                    else: #golds == spans, all mentions correct
-                        correct_mentions += len(golds)
-                    total_mentions += len(golds)
-                    
-        print(f"Nb golds mentions : {total_mentions}")
-        print(f"Nb correct mentions : {correct_mentions}")
-        print(f"Mention detection : {100*correct_mentions / total_mentions:.2f} %")
     
     def evaluate_from_csv(self, model, tensor_examples, stored_info, step, official=False, conll_path=None, tb_writer=None, gold_boundaries=True, k=1):
         logger.info('Step %d: evaluating on %d samples...' % (step, len(tensor_examples)))

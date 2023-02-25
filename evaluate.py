@@ -11,9 +11,7 @@ def evaluate(config_name, gpu_id, saved_suffix):
 
     # runner.evaluate(model, examples_dev, stored_info, 0, official=True, conll_path=runner.config['conll_eval_path'])  # Eval dev
     # print('=================================')
-    # runner.evaluate(model, examples_test, stored_info, 0, official=True, conll_path=runner.config['conll_test_path'])  # Eval test
-    # runner.evaluate_debug(model, examples_test, stored_info, 0, official=True, conll_path=runner.config['conll_test_path'])  # Eval test
-    runner.evaluate_from_csv(model, examples_test, stored_info, 0, official=True, conll_path=runner.config['conll_test_path'], gold_boundaries=True)
+    runner.evaluate(model, examples_test, stored_info, 0, official=True, conll_path=runner.config['conll_test_path'])  # Eval test
 
 
 if __name__ == '__main__':

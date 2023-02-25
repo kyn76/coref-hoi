@@ -113,7 +113,7 @@ def count_recorded_correct_antecedents(gold_boundaries=True):
     nb_predicted = nb_pos_scores + nb_neg_scores + nb_dummy
     nb_unpredicted = NB_TOTAL_MENTIONS - nb_predicted
 
-    print("\nStats about correct antecedents predictions, recorded in csv files given the max rank (k=210 as of 21/02/2023)\n")
+    print("\nStats about correct antecedents predictions, recorded in csv files given the max rank k\n")
     print(f"  Nb positive scores :     {nb_pos_scores/NB_TOTAL_MENTIONS:.2%} ({nb_pos_scores}/{NB_TOTAL_MENTIONS})")
     print(f"  Nb null scores (dummy) : {nb_dummy/NB_TOTAL_MENTIONS:.2%} ({nb_dummy}/{NB_TOTAL_MENTIONS})")
     print(f"  Nb negative scores :     {nb_neg_scores/NB_TOTAL_MENTIONS:.2%} ({nb_neg_scores}/{NB_TOTAL_MENTIONS})")

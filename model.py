@@ -14,6 +14,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s
                     level=logging.INFO)
 logger = logging.getLogger()
 
+MAX_TOP_ANTECEDENTS = 200
 
 class CorefModel(nn.Module):
     def __init__(self, config, device, num_genres=None):
@@ -103,11 +104,11 @@ class CorefModel(nn.Module):
         return bert_based_param, task_param
 
     def forward(self, *input):
-        ## uncomment to use predicted boundaries
-        return self.get_predictions_and_loss(*input)
+        ## uncomment the following line to use predicted boundaries
+        # return self.get_predictions_and_loss(*input)
     
-        ## uncomment to use gold boundaries
-        # return self.get_predictions_and_loss_gold_bound(*input)
+        ## uncomment the following line to use gold boundaries
+        return self.get_predictions_and_loss_gold_bound(*input)
 
 
     def get_predictions_and_loss(self, input_ids, input_mask, speaker_ids, sentence_len, genre, sentence_map,
@@ -188,7 +189,8 @@ class CorefModel(nn.Module):
         top_span_mention_scores = candidate_mention_scores[selected_idx]
 
         # Coarse pruning on each mention's antecedents
-        max_top_antecedents = min(num_top_spans, conf['max_top_antecedents'])
+        # max_top_antecedents = min(num_top_spans, conf['max_top_antecedents'])
+        max_top_antecedents = min(num_top_spans, MAX_TOP_ANTECEDENTS)
         top_span_range = torch.arange(0, num_top_spans, device=device)
         antecedent_offsets = torch.unsqueeze(top_span_range, 1) - torch.unsqueeze(top_span_range, 0)
         antecedent_mask = (antecedent_offsets >= 1)
@@ -431,7 +433,6 @@ class CorefModel(nn.Module):
 
         # Coarse pruning on each mention's antecedents
         # max_top_antecedents = min(num_top_spans, conf['max_top_antecedents'])
-        MAX_TOP_ANTECEDENTS = 210 # set to max value without memory limits, max number of mentions per document is 263
         max_top_antecedents = min(num_top_spans, MAX_TOP_ANTECEDENTS)
         top_span_range = torch.arange(0, num_top_spans, device=device)
         antecedent_offsets = torch.unsqueeze(top_span_range, 1) - torch.unsqueeze(top_span_range, 0)
