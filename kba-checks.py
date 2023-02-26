@@ -1,4 +1,5 @@
 import csv
+import sys
 
 NB_DOCUMENTS = 348
 NB_TOTAL_MENTIONS = 19764
@@ -10,8 +11,8 @@ def evaluate_antecedents():
     with open("metrics/eval_antecedents.md", "w") as out_file:
         out_file.write("# Antecedent Evaluation\n\n")
         for i in range(NB_DOCUMENTS):
-            gold_file = open(f"antecedents-csv/{i}-gold_antecedents.csv", "r")
-            pred_file = open(f"antecedents-csv/{i}-k_best_antecedents.csv", "r")
+            gold_file = open(f"kba-antecedents-csv/{i}-gold_antecedents.csv", "r")
+            pred_file = open(f"kba-antecedents-csv/{i}-k_best_antecedents.csv", "r")
             gold_reader = list(csv.DictReader(gold_file))
             pred_reader = list(csv.DictReader(pred_file))
             correct_antecedent_at_rank = {1 : 0,
@@ -41,7 +42,7 @@ def evaluate_antecedents():
 def count_nb_mentions_in_gold_csv():
     total_mentions = 0
     for i in range(NB_DOCUMENTS):
-        gold_file = open(f"antecedents-csv/{i}-gold_antecedents.csv", "r")
+        gold_file = open(f"kba-antecedents-csv/{i}-gold_antecedents.csv", "r")
         lines = gold_file.readlines()
         total_mentions += len(lines)-1
         gold_file.close()
@@ -52,7 +53,7 @@ def check_mentions_in_k_best_ant_gold_csv():
         print(f"Doc {i+1}/{NB_DOCUMENTS}")
         # get gold spans boundaries from gold_antecedent csv
         gold_spans = [] # list of gold (start, end) 
-        gold_file = open(f"antecedents-csv/{i}-gold_antecedents.csv", "r")
+        gold_file = open(f"kba-antecedents-csv/{i}-gold_antecedents.csv", "r")
         gold_reader = list(csv.DictReader(gold_file))
         for gold_row in gold_reader:
             gold_spans.append((int(gold_row["span_start"]), int(gold_row["span_end"])))
@@ -60,7 +61,7 @@ def check_mentions_in_k_best_ant_gold_csv():
 
         # get gold boundaries in k_best_ant_gold_bound csv
         kbest_spans = []
-        kbest_file = open(f"antecedents-csv/{i}-k_best_ant_gold_bound.csv", "r")
+        kbest_file = open(f"kba-antecedents-csv/{i}-k_best_ant_gold_bound.csv", "r")
         kbest_reader = list(csv.DictReader(kbest_file))
         for row in kbest_reader:
             span = (int(row["span_start"]), int(row["span_end"]))
@@ -78,7 +79,7 @@ def count_recorded_correct_antecedents(gold_boundaries=True):
     nb_dummy = 0 #same with zero score (dummy antecedent)
     for i in range(NB_DOCUMENTS):
         gold_antecedent_dict = {} # keys : (start, end), values : (antecedent_start, antecedent_end)
-        gold_file = open(f"antecedents-csv/{i}-gold_antecedents.csv", "r")
+        gold_file = open(f"kba-antecedents-csv/{i}-gold_antecedents.csv", "r")
         gold_reader = list(csv.DictReader(gold_file))
         for gold_row in gold_reader:
             gold_antecedent_dict[(int(gold_row["span_start"]), int(gold_row["span_end"]))] = (int(gold_row["antecedent_start"]), int(gold_row["antecedent_end"]))
@@ -88,7 +89,7 @@ def count_recorded_correct_antecedents(gold_boundaries=True):
             suffix = "ant_gold_bound"
         else:
             suffix = "antecedents"
-        kbest_file = open(f"antecedents-csv/{i}-k_best_{suffix}.csv", "r")
+        kbest_file = open(f"kba-antecedents-csv/{i}-k_best_{suffix}.csv", "r")
         kbest_reader = list(csv.DictReader(kbest_file))
         for row in kbest_reader:
             span = (int(row["span_start"]), int(row["span_end"]))
@@ -112,8 +113,13 @@ def count_recorded_correct_antecedents(gold_boundaries=True):
 
     nb_predicted = nb_pos_scores + nb_neg_scores + nb_dummy
     nb_unpredicted = NB_TOTAL_MENTIONS - nb_predicted
+    
+    if gold_boundaries:
+        text = "gold"
+    else:
+        text = "predicted"
 
-    print("\nStats about correct antecedents predictions, recorded in csv files given the max rank k\n")
+    print(f"\nStats about correct antecedents predictions ({text} boundaries), recorded in csv files given the max rank k\n")
     print(f"  Nb positive scores :     {nb_pos_scores/NB_TOTAL_MENTIONS:.2%} ({nb_pos_scores}/{NB_TOTAL_MENTIONS})")
     print(f"  Nb null scores (dummy) : {nb_dummy/NB_TOTAL_MENTIONS:.2%} ({nb_dummy}/{NB_TOTAL_MENTIONS})")
     print(f"  Nb negative scores :     {nb_neg_scores/NB_TOTAL_MENTIONS:.2%} ({nb_neg_scores}/{NB_TOTAL_MENTIONS})")
@@ -127,6 +133,9 @@ def count_recorded_correct_antecedents(gold_boundaries=True):
 
 
 if __name__ == '__main__':
+    boundaries = sys.argv[1]
+    assert(boundaries in ["gold", "predicted"])
+    gold_boundaries = (boundaries == "gold")
     # count_nb_mentions_in_gold_csv()
     # check_mentions_in_k_best_ant_gold_csv()
-    count_recorded_correct_antecedents(gold_boundaries=True)
+    count_recorded_correct_antecedents(gold_boundaries=gold_boundaries)

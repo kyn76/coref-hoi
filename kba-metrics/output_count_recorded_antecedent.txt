@@ -1,4 +1,4 @@
-Stats about correct antecedents predictions, recorded in csv files given the max rank (k=210 as of 21/02/2023)
+Stats about correct antecedents predictions (gold boundaries), recorded in csv files given the max rank k
 
   Nb positive scores :     62.78% (12407/19764)
   Nb null scores (dummy) : 22.93% (4532/19764)
@@ -7,4 +7,15 @@ Stats about correct antecedents predictions, recorded in csv files given the max
   TOTAL (predicted) :      100.00% (19764/19764)
 --------------------------
   Nb unpredicted :         0.00% (0/19764) -> number of missing correct antecedent prediction
+  Nb -infinity scores :    0.00% (0/19764)
+
+Stats about correct antecedents predictions (predicted boundaries), recorded in csv files given the max rank k
+
+  Nb positive scores :     62.02% (12258/19764)
+  Nb null scores (dummy) : 21.64% (4277/19764)
+  Nb negative scores :     10.30% (2035/19764)
+--------------------------
+  TOTAL (predicted) :      93.96% (18570/19764)
+--------------------------
+  Nb unpredicted :         6.04% (1194/19764) -> number of missing correct antecedent prediction
   Nb -infinity scores :    0.00% (0/19764)
