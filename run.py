@@ -234,10 +234,7 @@ class Runner:
 
         model.eval()
         for i, (doc_key, tensor_example) in enumerate(tensor_examples):
-            if i < 294:
-                continue
             tensor_example_gold = tensor_example[7:]
-
             if logging == "kbest":
                 if not gold_boundaries:
                     tensor_example = tensor_example[:7]  # Strip out gold
