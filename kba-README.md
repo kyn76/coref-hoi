@@ -33,7 +33,7 @@ To log into `kba-antecedent-csv/{num_doc}-gold_antecedents.csv` the gold (from o
 To log into `kba-antecedent-csv/{num_doc}-k_best_ant_gold.csv` the **k** best predicted mention-antecedent pairs(according to antecedent score given by the model) from the document of number *num_doc* (precise id is in the csv file). If the mention is predicted as not anaphoric, it is linked to the dummy antecedent (index : -1, antecedent score : 0). For this logging, the gold spans boundaries (spans start and end given by the oracle) are used.
 
 **Preliminary steps** :  
-- in the *forward* method of model.py, let only `return self.get_predictions_and_loss_gold_bound(*input)` uncommented
+- in the *forward* method of model.py, let only `option = "gold_boundaries"` uncommented
 - at the beginning of model.py : set MAX_TOP_ANTECEDENTS to wanted k value (200 in our evaluation)
 
 **Command** :  
@@ -47,7 +47,7 @@ To log into `kba-antecedent-csv/{num_doc}-k_best_ant_gold.csv` the **k** best pr
 To log into `kba-antecedent-csv/{num_doc}-k_best_ant_gold.csv` the **k** best predicted mention-antecedent pairs(according to antecedent score given by the model) from the document of number *num_doc* (precise id is in the csv file). If the mention is predicted as not anaphoric, it is linked to the dummy antecedent (index : -1, antecedent score : 0). For this logging, the predicted spans boundaries are used. Those spans boundaries are computed at the very beginning of the end-to-end neural approach.
 
 **Preliminary steps** :  
-- in the *forward* method of model.py, let only `return self.get_predictions_and_loss(*input)` uncommented
+- in the *forward* method of model.py, let only `option = None` uncommented
 - at the beginning of model.py : set MAX_TOP_ANTECEDENTS to wanted k value (50 in our evaluation) 
 
 **Command** :  
