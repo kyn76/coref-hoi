@@ -352,6 +352,104 @@ class Runner:
 
         metric_file.close()
 
+    def bell_tree_process(self, model, tensor_examples, stored_info, step, official=False, conll_path=None, tb_writer=None):
+        logger.info('Step %d: evaluating on %d samples...' % (step, len(tensor_examples)))
+        model.to(self.device)
+        evaluator = CorefEvaluator()
+        doc_to_prediction = {}
+        model.eval()
+        for i, (doc_key, tensor_example) in enumerate(tensor_examples):
+            gold_clusters = stored_info['gold'][doc_key]
+
+            # extract and stock all valid mention-antecedent scores (a "valid" pair does not contain dummy and the span is after the antecedent in the document)
+            with open(f"kba-antecedents-csv/{i}-k_best_ant_gold_bound.csv", "r") as pred_file:
+                pred_reader = list(csv.DictReader(pred_file))
+            span_starts, span_ends = [], []
+            pair_scores = {}
+            ##
+            # pair_scores is double indexed structure (with span_idx then antecedent_idx)
+            # for example : {2 : {1 : 10}, 3 : {1 : 5, 2 : 20}} associate the anaphor-antecedent pairs (2,1), (3,1), (3,2) to scores 10, 5, 20 respectively
+            # dummy is not stocked as antecedent because the associated score is always 0
+            # span index associated to empty dictionary means that this span is necessarily not anaphoric
+            ##
+            for row in pred_reader:
+                span_idx = int(row["span_idx"])
+                if span_idx not in pair_scores: # existing keys of pairs_scores are the visited span_idx
+                    pair_scores[span_idx] = {}
+                    span_starts.append(int(row["span_start"]))
+                    span_ends.append(int(row["span_end"]))
+
+                antecedent_idx = int(row["antecedent_idx"])
+                if antecedent_idx == -1 or antecedent_idx >= span_idx:
+                    continue
+                assert(antecedent_idx not in pair_scores[span_idx]) 
+                pair_scores[span_idx][antecedent_idx] = float(row["antecedent_score"])
+            
+            # use pair_scores structure to construct the best path in the Bell tree, concretely, construct entities from left to right
+            assert(len(pair_scores) == len(span_starts))
+            nb_spans = len(span_starts)
+            entities = []
+            for span in range(nb_spans):
+                if pair_scores[span] == {}: # no antecedent available, so new entity
+                    entities.append([span])
+                    continue
+
+                assert(len(entities) > 0)
+                entity_scores = []
+                for entity in entities:
+                    max_score = float("-inf")
+                    for mention in entity:
+                        if mention not in pair_scores[span]:
+                            continue
+                        score = pair_scores[span][mention]
+                        if score > max_score:
+                            max_score = score
+                    entity_scores.append(max_score)
+                max_inter_entity = np.max(entity_scores)
+                if max_inter_entity <= 0:
+                    entities.append([span])
+                else:
+                    chosen_entity = np.argmax(entity_scores)
+                    entities[chosen_entity].append(span)
+
+            # use entities to create anaphor_antecedents pairs and then the predicted_antecedent_idx list (like in evaluate_from_csv code)
+            anaphor_antecedent_pairs = {}
+            for entity in entities:
+                entity.reverse() # each anaphor is just before its antecedent in this reversed list
+                for idx in range(len(entity) - 1):
+                    anaphor_antecedent_pairs[entity[idx]] = entity[idx + 1]
+            
+            predicted_antecedent_idx = []
+            for span_idx in range(nb_spans):
+                if span_idx not in anaphor_antecedent_pairs:
+                    predicted_antecedent_idx.append(-1)
+                else:
+                    predicted_antecedent_idx.append(anaphor_antecedent_pairs[span_idx])
+            
+            # prepare evaluation
+            predicted_clusters = model.update_evaluator_v2(span_starts, span_ends, predicted_antecedent_idx, gold_clusters, evaluator)
+            doc_to_prediction[doc_key] = predicted_clusters
+            logger.info(f"Bell tree approach running ... (doc {i+1}/{len(tensor_examples)})")
+
+        p, r, f = evaluator.get_prf()
+        metrics = {'Eval_Avg_Precision': p * 100, 'Eval_Avg_Recall': r * 100, 'Eval_Avg_F1': f * 100}
+        for name, score in metrics.items():
+            # logger.info('%s: %.2f' % (name, score))
+            if tb_writer:
+                tb_writer.add_scalar(name, score, step)
+
+        if official:
+            conll_results = conll.evaluate_conll(conll_path, doc_to_prediction, stored_info['subtoken_maps'], official_stdout=False)
+            official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
+            # logger.info('Official avg F1: %.4f' % official_f1)
+                        
+        metric_file = open("kba-metrics/bt-metrics-gold_boundaries.csv", "w")
+        metric_file.write("eval_avg_p,eval_avg_r,eval_avg_f,conll_md_p,conll_md_r,conll_md_f,conll_muc_p,conll_muc_r,conll_muc_f,conll_bcub_p,conll_bcub_r,conll_bcub_f,conll_ceafe_p,conll_ceafe_r,conll_ceafe_f,conll_avg_f\n")
+        metric_file.write(f"{p*100:.2f},{r*100:.2f},{f*100:.2f},{conll_results['muc']['md_p']},{conll_results['muc']['md_r']},{conll_results['muc']['md_f']},{conll_results['muc']['p']},{conll_results['muc']['r']},{conll_results['muc']['f']},{conll_results['bcub']['p']},{conll_results['bcub']['r']},{conll_results['bcub']['f']},{conll_results['ceafe']['p']},{conll_results['ceafe']['r']},{conll_results['ceafe']['f']},{official_f1:.4f}\n")
+        metric_file.close()
+
+
+
     def predict(self, model, tensor_examples):
         logger.info('Predicting %d samples...' % len(tensor_examples))
         model.to(self.device)
