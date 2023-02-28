@@ -16,6 +16,7 @@ from model import CorefModel
 import conll
 import sys
 import csv
+import copy
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -352,11 +353,11 @@ class Runner:
 
         metric_file.close()
 
-    def bell_tree_process(self, model, tensor_examples, stored_info, step, official=False, conll_path=None, tb_writer=None):
+    def bell_tree_OB_process(self, model, tensor_examples, stored_info, step, official=False, conll_path=None, tb_writer=None):
         logger.info('Step %d: evaluating on %d samples...' % (step, len(tensor_examples)))
         model.to(self.device)
 
-        metric_file = open("kba-metrics/op-metrics-gold_boundaries.csv", "w")
+        metric_file = open("kba-metrics/btob-metrics-gold_boundaries.csv", "w")
         metric_file.write("intra_cluster_aggregation,eval_avg_p,eval_avg_r,eval_avg_f,conll_md_p,conll_md_r,conll_md_f,conll_muc_p,conll_muc_r,conll_muc_f,conll_bcub_p,conll_bcub_r,conll_bcub_f,conll_ceafe_p,conll_ceafe_r,conll_ceafe_f,conll_avg_f\n")
         for intra_aggregation in ["max", "avg"]:
             evaluator = CorefEvaluator()
@@ -453,7 +454,149 @@ class Runner:
                             
             metric_file.write(f"{intra_aggregation},{p*100:.2f},{r*100:.2f},{f*100:.2f},{conll_results['muc']['md_p']},{conll_results['muc']['md_r']},{conll_results['muc']['md_f']},{conll_results['muc']['p']},{conll_results['muc']['r']},{conll_results['muc']['f']},{conll_results['bcub']['p']},{conll_results['bcub']['r']},{conll_results['bcub']['f']},{conll_results['ceafe']['p']},{conll_results['ceafe']['r']},{conll_results['ceafe']['f']},{official_f1:.4f}\n")
         metric_file.close()
+    
+    def update_living_partitions(new_span, living_partitions, pair_scores, intra_aggregation, nb_beams, verbose):
+        if verbose:
+            print("# living partitions #")
+            for partition in living_partitions:
+                print(partition["struct"], f"({partition['score']})")
 
+        candidate_partitions = [] # every candidate partitions for this iteration, contains dict {"struct" : list, "score" : int}
+        for living_partition in living_partitions:
+            assert(len(living_partition["struct"]) > 0)
+            # new entity case
+            candidate_partition = copy.deepcopy(living_partition)
+            candidate_partition["struct"].append([new_span]) # and score doesn't change
+            candidate_partitions.append(candidate_partition)
+
+            # expand existing entities case
+            for entity_idx in range(len(living_partition["struct"])):
+                candidate_partition = copy.deepcopy(living_partition)
+                # compute the aggregation score of this entity with the current span
+                entity = candidate_partition["struct"][entity_idx]
+                intra_scores = [] # scores of mentions inside this partial cluster / entity
+                for mention in entity:
+                    if mention not in pair_scores[new_span]:
+                        continue
+                    intra_scores.append(pair_scores[new_span][mention])
+                if intra_scores == []:
+                    entity_score = float("-inf")
+                elif intra_aggregation == "avg":
+                    entity_score = np.mean(intra_scores)
+                else: # intra_aggregation == "max"
+                    entity_score = np.max(intra_scores)
+                # set the candidate partition structure and update its cumulative score
+                candidate_partition["struct"][entity_idx].append(new_span)
+                candidate_partition["score"] += entity_score
+                candidate_partitions.append(candidate_partition)
+
+        if verbose:
+            print("\n# candidates #")
+            for partition in candidate_partitions:
+                print(partition["struct"], f"({partition['score']})")
+        # perform the beam search in this step of the Bell Tree
+        scores = list(map(lambda p : p["score"], candidate_partitions))
+        best_idcs = np.flip(np.argsort(scores))[:nb_beams]
+        living_partitions = [] # update living partitions
+        for best_idx in best_idcs:
+            living_partitions.append(candidate_partitions[best_idx])
+        return living_partitions
+
+    def bell_tree_process(self, model, tensor_examples, stored_info, step, official=False, conll_path=None, tb_writer=None, intra_aggregation="max", nb_beams=1, verbose=False):
+        logger.info('Step %d: evaluating on %d samples...' % (step, len(tensor_examples)))
+        model.to(self.device)
+
+        metric_file = open("kba-metrics/bt-metrics-gold_boundaries.csv", "w")
+        metric_file.write("intra_cluster_aggregation,eval_avg_p,eval_avg_r,eval_avg_f,conll_md_p,conll_md_r,conll_md_f,conll_muc_p,conll_muc_r,conll_muc_f,conll_bcub_p,conll_bcub_r,conll_bcub_f,conll_ceafe_p,conll_ceafe_r,conll_ceafe_f,conll_avg_f\n")
+        
+        evaluator = CorefEvaluator()
+        doc_to_prediction = {}
+        model.eval()
+        for i, (doc_key, _) in enumerate(tensor_examples):
+            if verbose:
+                print(f"\n### DOC n° {i} ###")
+            gold_clusters = stored_info['gold'][doc_key]
+
+            # extract and stock all valid mention-antecedent scores (a "valid" pair does not contain dummy and the span is after the antecedent in the document)
+            with open(f"kba-antecedents-csv/{i}-k_best_ant_gold_bound.csv", "r") as pred_file:
+                pred_reader = list(csv.DictReader(pred_file))
+            span_starts, span_ends = [], []
+            predicted_antecedent_idx = []
+            pair_scores = {}
+            ##
+            # pair_scores is double indexed structure (with span_idx then antecedent_idx)
+            # for example : {2 : {1 : 10}, 3 : {1 : 5, 2 : 20}} associate the anaphor-antecedent pairs (2,1), (3,1), (3,2) to scores 10, 5, 20 respectively
+            # dummy is not stocked as antecedent because the associated score is always 0
+            # span index associated to empty dictionary means that this span is necessarily not anaphoric
+            ##
+            for row in pred_reader:
+                span_idx = int(row["span_idx"])
+                if span_idx not in pair_scores: # existing keys of pairs_scores are the visited span_idx
+                    pair_scores[span_idx] = {}
+                    span_starts.append(int(row["span_start"]))
+                    span_ends.append(int(row["span_end"]))
+
+                antecedent_idx = int(row["antecedent_idx"])
+                if antecedent_idx == -1 or antecedent_idx >= span_idx:
+                    continue
+                assert(antecedent_idx not in pair_scores[span_idx]) 
+                pair_scores[span_idx][antecedent_idx] = float(row["antecedent_score"])
+            
+            # use pair_scores structure to construct the Bell tree and prune it to keep *nb_beams* beams to each iteration
+            assert(len(pair_scores) == len(span_starts))
+            nb_spans = len(span_starts)
+            if nb_spans == 1:
+                predicted_antecedent_idx = [-1]
+            elif nb_spans >= 2:
+                living_partitions = [] # coexisting considered partitions / clusterings of entities, dict {"struct" : list, "score" : float}, "score" is the cumulative score
+                living_partitions.append({"struct" : [[0]], "score" : 0}) # the first mention of the first entity, mandatory
+                for span in range(1, nb_spans):
+                    if verbose:
+                        print(f"\n## Span {span} ##")
+                    assert(len(living_partitions) <= nb_beams)
+                    living_partitions = Runner.update_living_partitions(span, living_partitions, pair_scores, intra_aggregation, nb_beams, verbose)
+                
+                # select the best complete partition
+                scores = list(map(lambda p : p["score"], living_partitions))
+                best_partition = living_partitions[np.argmax(scores)]["struct"] # from here we use only the partition structure
+                if verbose:
+                    print("\n# living complete partitions #")
+                    for partition in living_partitions:
+                        print(partition["struct"], f"({partition['score']})")
+                    print(f"\n-> Best partition : {best_partition} (score : {np.max(scores)})\n")
+
+                # use entities to create anaphor_antecedents pairs and then the predicted_antecedent_idx list (like in evaluate_from_csv code)
+                anaphor_antecedent_pairs = {}
+                for entity in best_partition:
+                    entity.reverse() # each anaphor is just before its antecedent in this reversed list
+                    for idx in range(len(entity) - 1):
+                        anaphor_antecedent_pairs[entity[idx]] = entity[idx + 1]
+                
+                for span_idx in range(nb_spans):
+                    if span_idx not in anaphor_antecedent_pairs:
+                        predicted_antecedent_idx.append(-1)
+                    else:
+                        predicted_antecedent_idx.append(anaphor_antecedent_pairs[span_idx])
+                
+                # prepare evaluation
+            predicted_clusters = model.update_evaluator_v2(span_starts, span_ends, predicted_antecedent_idx, gold_clusters, evaluator)
+            doc_to_prediction[doc_key] = predicted_clusters
+            logger.info(f"Bell tree one path running... [{intra_aggregation}] (doc {i+1}/{len(tensor_examples)})")
+
+        p, r, f = evaluator.get_prf()
+        metrics = {'Eval_Avg_Precision': p * 100, 'Eval_Avg_Recall': r * 100, 'Eval_Avg_F1': f * 100}
+        for name, score in metrics.items():
+            # logger.info('%s: %.2f' % (name, score))
+            if tb_writer:
+                tb_writer.add_scalar(name, score, step)
+
+        if official:
+            conll_results = conll.evaluate_conll(conll_path, doc_to_prediction, stored_info['subtoken_maps'], official_stdout=False)
+            official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
+            # logger.info('Official avg F1: %.4f' % official_f1)
+                        
+        metric_file.write(f"{intra_aggregation},{p*100:.2f},{r*100:.2f},{f*100:.2f},{conll_results['muc']['md_p']},{conll_results['muc']['md_r']},{conll_results['muc']['md_f']},{conll_results['muc']['p']},{conll_results['muc']['r']},{conll_results['muc']['f']},{conll_results['bcub']['p']},{conll_results['bcub']['r']},{conll_results['bcub']['f']},{conll_results['ceafe']['p']},{conll_results['ceafe']['r']},{conll_results['ceafe']['f']},{official_f1:.4f}\n")
+        metric_file.close()
 
 
     def predict(self, model, tensor_examples):

@@ -14,6 +14,10 @@ First, the goal of this project is to evaluate the possible benefits from this k
 
 ## k-best approach gain evaluation
 
+In this part, we try to evaluate the benefits of a score ranking approach. First, we log the gold (given by oracle) mention-antecedent pairs in CSV files (one file per test document). This step is named the *gold logging*.  
+Then, we log the predicted mention-antecedent pairs, considering for each mention the k best antecedents according to the model, and the associated score. This is what we call the **k-best logging** (one CSV file per test document). This step can be done using the gold mentions boundaries (starts / ends) or the predicted boundaries.  
+Finally, using the CSV files, we evaluate the gain of considering the k best antecedents for each mention and not just the first one. The precise process is described in the corresponding section below.  
+
 ### Commands to launch evaluations
 
 #### 1. Gold logging
@@ -167,3 +171,6 @@ On the other hand, statistics about correct predicted boundaries in the whole CS
 So, the main part of explanation of this performance limitation near 90% when k increase is probably caused by a cascading error from some uncorrect spans start/end.  
 
 ## Prototype of k-best Bell Tree
+
+`python kba-bell_tree_one_beam.py train_spanbert_large_ml0_d1 May08_12-37-39_54000`
+
