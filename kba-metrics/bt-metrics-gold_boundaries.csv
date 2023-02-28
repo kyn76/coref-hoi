@@ -1,0 +1,2 @@
+intra_cluster_aggregation,eval_avg_p,eval_avg_r,eval_avg_f,conll_md_p,conll_md_r,conll_md_f,conll_muc_p,conll_muc_r,conll_muc_f,conll_bcub_p,conll_bcub_r,conll_bcub_f,conll_ceafe_p,conll_ceafe_r,conll_ceafe_f,conll_avg_f
+max,93.29,79.81,86.01,100.0,87.29,93.21,96.81,85.77,90.96,92.48,78.56,84.95,90.56,75.06,82.08,85.9967
