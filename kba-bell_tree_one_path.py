@@ -14,9 +14,9 @@ def bell_tree_evaluation(config_name, gpu_id, saved_suffix):
 
 if __name__ == '__main__':
     config_name, saved_suffix = sys.argv[1], sys.argv[2]
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 5:
         gpu_id = None
     else:
-        gpu_id = int(sys.argv[3])
+        gpu_id = int(sys.argv[4])
     
     bell_tree_evaluation(config_name, gpu_id, saved_suffix)
