@@ -10,7 +10,7 @@ def bell_tree_evaluation(config_name, gpu_id, saved_suffix, intra_aggregation):
     stored_info = runner.data.get_stored_info()
     
     verbose = False
-    nb_beams = 10
+    nb_beams = 1
     runner.bell_tree_process(model, examples_test, stored_info, 0, official=True, conll_path=runner.config['conll_test_path'], intra_aggregation=intra_aggregation, nb_beams=nb_beams, verbose=verbose)
 
 
