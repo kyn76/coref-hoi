@@ -408,7 +408,7 @@ class Runner:
                                 continue
                             intra_scores.append(pair_scores[span][mention])
                         if intra_scores == []:
-                            entity_score = float("-inf")
+                            entity_score = 0
                         elif intra_aggregation == "avg":
                             entity_score = np.mean(intra_scores)
                         else: # intra_aggregation == "max"
@@ -438,7 +438,7 @@ class Runner:
                 # prepare evaluation
                 predicted_clusters = model.update_evaluator_v2(span_starts, span_ends, predicted_antecedent_idx, gold_clusters, evaluator)
                 doc_to_prediction[doc_key] = predicted_clusters
-                logger.info(f"Bell tree one path running... [{intra_aggregation}] (doc {i+1}/{len(tensor_examples)})")
+                logger.info(f"Bell tree approach running... [{intra_aggregation}] (doc {i+1}/{len(tensor_examples)})")
 
             p, r, f = evaluator.get_prf()
             metrics = {'Eval_Avg_Precision': p * 100, 'Eval_Avg_Recall': r * 100, 'Eval_Avg_F1': f * 100}

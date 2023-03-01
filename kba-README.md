@@ -133,7 +133,7 @@ We tried to modify the source code at minimum and allow reproducibility of exper
 The max number of antecedents for the test documents is 262, so the maximum k value for test documents is probably this one. Due to memory limits, the experiment was made with k = 50 for predicted boundaries and k = 200 for gold boundaries.
 The forward step of the model is indeed more memory-consuming with predicted boundaries.  
 
-The machine on which the experiments was made has 8 GB of RAM, the processes were made without any memory-consuming application concurrency. The memory consumption for the prediction process (for some documents) was higher than 7 GB if the value of k goes beyond 50 (predicted boundaries) / 200 (gold boundaries).
+The machine on which the experiments were made has 8 GB of RAM, the processes were made without any memory-consuming application concurrency. The memory consumption for the prediction process (for some documents) was higher than 7 GB if the value of k goes beyond 50 (predicted boundaries) / 200 (gold boundaries).
 
 ### Results
 
@@ -170,7 +170,23 @@ On the one hand, the evaluation was restricted to k = 50 (because of memory limi
 On the other hand, statistics about correct predicted boundaries in the whole CSV files (see *Extra remarks* above) have shown that there are only about 93% of antecedents that are correctly reported in CSV files. We can assume that the extra 7% are missing because the model did not compute the correct span boundaries (as there are 0% missing when we use gold boundaries).  
 So, the main part of explanation of this performance limitation near 90% when k increase is probably caused by a cascading error from some uncorrect spans start/end.  
 
-## Prototype of k-best Bell Tree
+## A Bell Tree approach from the k-best antecedent ranking
 
-`python kba-bell_tree_one_beam.py train_spanbert_large_ml0_d1 May08_12-37-39_54000`
+We have seen in the previous part that considering other mention-antecedents pairs can be profitable to create better partitions. Thus, we adopt a more global approach to consider other possible antecedents in the process. Moreover, we proceed at the entity scale. We adapt the Bell Tree approach of Luo et al. (https://aclanthology.org/P04-1018.pdf), using the predictor mention-antecedent scores. Those scores are already logged into the `kba-antecedents-csv` CSV files (namely the `{i}-k_best_ant_gold_bound.csv` files).
 
+### The Bell Tree principle
+We go from right to left in the document, and for each mention, we evaluate its compatibility with already built clusters (representing entities). This compatibility considers each score between the current mention and the antecedents from the partial cluster. Those scores are then aggregated in a specific way inside the cluster (maximum, average) to create a score between the current mention and each cluster. We create the next generation of the Bell Tree by creating successor partitions this way : the first successor is the predecessor partition plus a new cluster with only the new mention. The others are obtained by adding the new mention to each partial cluster at once, covering all possibilities. To have more details about the process, see Luo et al.'s paper, Figure 1 specifically. Each partitition has a score in the Bell Tree. The first partition, with the first mention, has score 0. Then, at each generation, we compute the aggregated score between a new mention and existing clusters, and this score is added to the predecessor's to get the successor partition's cumulative score. The tree is then pruned by beam search, keeping only the B best-scored partitions among every successors of this generation. Then, we repeat the process until the last mention, and select the best-scored one.  
+
+In our implementation, we use the gold boundaries to focus on the main task of anaphor-antecedent linking and partition build.
+
+### Launch experiments
+
+Be sure that the `{i}-k_best_ant_gold_bound.csv` files are correctly generated. Otherwise, follow the steps of the section `2.a. k-best logging (gold boundaries)` above.  
+
+**Command** :  
+`python kba-bell_tree.py CONFIG_NAME SAVED_PREFIX INTRA_AGGREGATION [GPU_ID]`  
+
+(optional argument between brackets)
+
+**Example used in this project** :   
+`python kba-bell_tree.py train_spanbert_large_ml0_d1 May08_12-37-39_54000 avg`
