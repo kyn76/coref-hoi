@@ -67,7 +67,7 @@ Once the gold and kbest logging CSV files have been written, this process reads 
 **Command** :  
 `python kba-evaluate_from_csv.py CONFIG_NAME SAVED_SUFFIX gold K_MAX_VALUE [GPU_ID]`
 
-**Example used in this project** :
+**Example used in this project** :  
 `python kba-evaluate_from_csv.py train_spanbert_large_ml0_d1 May08_12-37-39_54000 gold 200`
 
 *Note* : Even if we evaluate from csv files, we need to provide the configuration and saved_suffix to instantiate the model, because the evaluator is necessarily linked to a model in the native implementation.
@@ -80,7 +80,7 @@ The expectations are similar, but we do not really expect that the f-score appro
 **Command** :  
 `python kba-evaluate_from_csv.py CONFIG_NAME SAVED_SUFFIX predicted K_MAX_VALUE [GPU_ID]`
 
-**Example used in this project** :
+**Example used in this project** :  
 `python kba-evaluate_from_csv.py train_spanbert_large_ml0_d1 May08_12-37-39_54000 predicted 50`
 
 ### Diff with source repository
