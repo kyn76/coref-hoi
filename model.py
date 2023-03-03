@@ -15,7 +15,6 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s
 logger = logging.getLogger()
 
 MAX_TOP_ANTECEDENTS = 200
-MAX_TOP_ANTECEDENTS_BELL_TREE = 50
 
 class CorefModel(nn.Module):
     def __init__(self, config, device, num_genres=None):
@@ -111,16 +110,13 @@ class CorefModel(nn.Module):
         ## uncomment the following line to use gold boundaries
         option = "gold_boundaries"
 
-        ## uncomment the following line for Bell tree experiment (with gold boundaries)
-        # option = "bell_tree"
-        
         return self.get_predictions_and_loss(*input, option=option)
 
 
     def get_predictions_and_loss(self, input_ids, input_mask, speaker_ids, sentence_len, genre, sentence_map,
                                  is_training, gold_starts=None, gold_ends=None, gold_mention_cluster_map=None, option=None):
         """ Model and input are already on the device """
-        assert(option in [None, "gold_boundaries", "bell_tree"])
+        assert(option in [None, "gold_boundaries"])
         device = self.device
         conf = self.config
 
@@ -147,7 +143,7 @@ class CorefModel(nn.Module):
             candidate_end_sent_idx = sentence_indices[torch.min(candidate_ends, torch.tensor(num_words - 1, device=device))]
             candidate_mask = (candidate_ends < num_words) & (candidate_start_sent_idx == candidate_end_sent_idx)
             candidate_starts, candidate_ends = candidate_starts[candidate_mask], candidate_ends[candidate_mask]  # [num valid candidates]
-        elif option in ["gold_boundaries", "bell_tree"]:
+        elif option in ["gold_boundaries"]:
             candidate_starts, candidate_ends = gold_starts, gold_ends # line used to replace predicted boundaries by gold (true) boundaries, used for example to log the k best antecedents assuming that the boundaries are perfect
         
         num_candidates = candidate_starts.shape[0]
@@ -167,7 +163,7 @@ class CorefModel(nn.Module):
         candidate_emb_list = [span_start_emb, span_end_emb]
         if conf['use_features']:
             candidate_width_idx = candidate_ends - candidate_starts
-            if option in ["gold_boundaries", "bell_tree"]:
+            if option in ["gold_boundaries"]:
                 # code to prevent the candidate_width_idx to be greater than the max authorized (self.max_span_width-1)
                 max_width_idx = torch.full(candidate_starts.shape, self.max_span_width-1, dtype=torch.long)
                 combined = torch.cat((torch.unsqueeze(max_width_idx, 0), torch.unsqueeze(candidate_width_idx, 0)), dim=0)
@@ -201,7 +197,7 @@ class CorefModel(nn.Module):
         candidate_starts_cpu, candidate_ends_cpu = candidate_starts.tolist(), candidate_ends.tolist()
         if option is None:
             num_top_spans = int(min(conf['max_num_extracted_spans'], conf['top_span_ratio'] * num_words))
-        elif option in ["gold_boundaries", "bell_tree"]:
+        elif option in ["gold_boundaries"]:
             num_top_spans = num_candidates # to avoid pruning
         selected_idx_cpu = self._extract_top_spans(candidate_idx_sorted_by_score, candidate_starts_cpu, candidate_ends_cpu, num_top_spans)
         assert len(selected_idx_cpu) == num_top_spans
@@ -213,10 +209,7 @@ class CorefModel(nn.Module):
 
         # Coarse pruning on each mention's antecedents
         # max_top_antecedents = min(num_top_spans, conf['max_top_antecedents'])
-        if option == "bell_tree":
-            max_top_antecedents = min(num_top_spans, MAX_TOP_ANTECEDENTS_BELL_TREE)
-        else:
-            max_top_antecedents = min(num_top_spans, MAX_TOP_ANTECEDENTS)
+        max_top_antecedents = min(num_top_spans, MAX_TOP_ANTECEDENTS)
         top_span_range = torch.arange(0, num_top_spans, device=device)
         antecedent_offsets = torch.unsqueeze(top_span_range, 1) - torch.unsqueeze(top_span_range, 0)
         antecedent_mask = (antecedent_offsets >= 1)
@@ -224,10 +217,7 @@ class CorefModel(nn.Module):
         source_span_emb = self.dropout(self.coarse_bilinear(top_span_emb))
         target_span_emb = self.dropout(torch.transpose(top_span_emb, 0, 1))
         pairwise_coref_scores = torch.matmul(source_span_emb, target_span_emb)
-        if option == "bell_tree":
-            pairwise_fast_scores = pairwise_coref_scores
-        else:
-            pairwise_fast_scores = pairwise_mention_score_sum + pairwise_coref_scores
+        pairwise_fast_scores = pairwise_mention_score_sum + pairwise_coref_scores
         pairwise_fast_scores += torch.log(antecedent_mask.to(torch.float))
         if conf['use_distance_prior']:
             distance_score = torch.squeeze(self.antecedent_distance_score_ffnn(self.dropout(self.emb_antecedent_distance_prior.weight)), 1)
