@@ -175,7 +175,7 @@ So, the main part of explanation of this performance limitation near 90% when k 
 We have seen in the previous part that considering other mention-antecedents pairs can be profitable to create better partitions. Thus, we adopt a more global approach to consider other possible antecedents in the process. Moreover, we proceed at the entity scale. We adapt the Bell Tree approach of Luo et al. (https://aclanthology.org/P04-1018.pdf), using the predictor mention-antecedent scores. Those scores are already logged into the `kba-antecedents-csv` CSV files (namely the `{i}-k_best_ant_gold_bound.csv` files).
 
 ### The Bell Tree principle
-We go from right to left in the document, and for each mention, we evaluate its compatibility with already built clusters (representing entities). This compatibility considers each score between the current mention and the antecedents from the partial cluster. Those scores are then aggregated in a specific way inside the cluster (maximum, average) to create a score between the current mention and each cluster. We create the next generation of the Bell Tree by creating successor partitions this way : the first successor is the predecessor partition plus a new cluster with only the new mention. The others are obtained by adding the new mention to each partial cluster at once, covering all possibilities. To have more details about the process, see Luo et al.'s paper, Figure 1 specifically. Each partitition has a score in the Bell Tree. The first partition, with the first mention, has score 0. Then, at each generation, we compute the aggregated score between a new mention and existing clusters, and this score is added to the predecessor's to get the successor partition's cumulative score. The tree is then pruned by beam search, keeping only the B best-scored partitions among every successors of this generation. Then, we repeat the process until the last mention, and select the best-scored one.  
+We go from right to left in the document, and for each mention, we evaluate its compatibility with already built clusters (representing entities). This compatibility considers each score between the current mention and the antecedents from the partial cluster. Those scores are then aggregated in a specific way inside the cluster (maximum : `max`, average : `avg`) to create a score between the current mention and each cluster. We create the next generation of the Bell Tree by creating successor partitions this way : the first successor is the predecessor partition plus a new cluster with only the new mention. The others are obtained by adding the new mention to each partial cluster at once, covering all possibilities. To have more details about the process, see Luo et al.'s paper, Figure 1 specifically. Each partitition has a score in the Bell Tree. The first partition, with the first mention, has score 0. Then, at each generation, we compute the aggregated score between a new mention and existing clusters, and this score is added to the predecessor's to get the successor partition's cumulative score. The tree is then pruned by beam search, keeping only the B best-scored partitions among every successors of this generation. Then, we repeat the process until the last mention, and select the best-scored one.  
 
 In our implementation, we use the gold boundaries to focus on the main task of anaphor-antecedent linking and partition build.
 
@@ -184,9 +184,43 @@ In our implementation, we use the gold boundaries to focus on the main task of a
 Be sure that the `{i}-k_best_ant_gold_bound.csv` files are correctly generated. Otherwise, follow the steps of the section `2.a. k-best logging (gold boundaries)` above.  
 
 **Command** :  
-`python kba-bell_tree.py CONFIG_NAME SAVED_PREFIX INTRA_AGGREGATION [GPU_ID]`  
+`python kba-bell_tree.py CONFIG_NAME SAVED_PREFIX INTRA_AGGREGATIONS_LIST NBS_BEAMS_LIST [GPU_ID]`  
 
-(optional argument between brackets)
+- the argument GPU_ID is between brackets because it is optional
+- INTRA_AGGREGATIONS_LIST contains between brackets the chosen intra-cluster aggregations strategies
+- NBS_BEAMS_LIST contains between brackets the chosen numbers of beams in the beam search
+- every combinations of intra aggregations and number beams are performed
 
 **Example used in this project** :   
-`python kba-bell_tree.py train_spanbert_large_ml0_d1 May08_12-37-39_54000 avg`
+`python kba-bell_tree.py train_spanbert_large_ml0_d1 May08_12-37-39_54000 "[max,avg]" "[1,5,10]"`  
+
+In this example, the Bell Tree beam search is performed with the parameters (max, 1), (max, 5), (max, 10), (avg, 1), (avg, 5), (avg_10).  
+
+### Results
+
+Results of our experiment are reported in `kba-metrics/bt-metrics-gold_boundaries.csv`.  
+We report the main metrics (f-scores), the same as in the k-best evaluation above, plus the CoNLL mention detection f-score (conll_md_f).  
+
+| intra_aggregation | nb_beams | eval_avg_f | conll_avg_f | conll_md_f | conll_muc_f | conll_bcub_f | conll_ceafe_f |
+|-------------------|----------|------------|-------------|------------|-------------|--------------|---------------|
+| max               | 1        | 86.01      | 85.9967     | 93.21      | 90.96       | 84.95        | 82.08         |
+| max               | 5        | 86.01      | 85.9967     | 93.21      | 90.96       | 84.95        | 82.08         |
+| max               | 10       | 86.01      | 85.9967     | 93.21      | 90.96       | 84.95        | 82.08         |
+| avg               | 1        | 84.42      | 84.4100     | 92.85      | 89.89       | 82.52        | 80.82         |
+| avg               | 5        | 82.03      | 82.0200     | 92.56      | 88.75       | 78.86        | 78.45         |
+| avg               | 10       | 81.31      | 81.2933     | 92.47      | 88.44       | 77.73        | 77.71         |
+
+#### Max intra-cluster aggregation
+
+For the strategy of taking the maximum score between the new span and each antecedent of a cluster, and a 1-beam search, we notice the same results than the control case (with gold span boundaries). This result was expected because using the maximum function to aggregate scores and only one beam through the Bell tree lead to an equivalent to the process made by the base model.  
+
+When we increase the number of beams, the results remain the same. Thus, with the max score aggregator, we don't discover paths through the Bell Tree that have a better accumulated score. We can assume that this is because best mention-antecedent score is often really much higher than the others. So, keeping the best one for each iteration and accumulate it lead to the same results, even with more beams in the search. 
+
+#### Average intra-cluster aggregation
+
+In a 1-beam search, using the mean aggregation within each cluster leads to a performance drop of 1.5 % in f-score compared to the max aggregation. That result means that the more global information (score with the previous mentions of the same entity) have a negative impact on the coreference task.  
+When we increase the number of beams in the search, the performance keeps decreasing. With 10 beams, we have more than 4.5 % of performance drop compared to the max aggregation.  
+
+A possible explanation to that observation could be that the scoring function was learned to assess positively the pairs containing a mention and its direct antecedent. Thus, the score with the previous antecedents is not necessarily high, and maybe will decrease even more with the distance.  
+
+At this stage, our approach does not improve the task but it could be relevant to investigate other aggregation steps or strategies, more adapted to the scoring function, e.g. by emphasing an antecedent score relatively to its recentness.
